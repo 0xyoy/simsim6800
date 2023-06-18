@@ -53,7 +53,7 @@ static void op_and(MPUState * state, uint8_t * operand1, uint8_t operand2) {
 }
 
 static void op_asl(MPUState * state, uint8_t * operand) {
-    uint8_t bit7 = (*operand)>>7;
+    uint8_t bit7 = (*operand)&0x80;
     *operand <<= 1;
     bit7 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C); 
     *operand == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
@@ -61,6 +61,27 @@ static void op_asl(MPUState * state, uint8_t * operand) {
     bit7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V); 
 }
 
+static void op_asr(MPUState * state, uint8_t * operand) {
+    uint8_t bit7 = (*operand)&0x80;
+    uint8_t bit0 = (*operand)&0x01;
+    *operand >>= 1;
+    *operand |= bit7;
+    bit0 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C); 
+    *operand == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
+    bit7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N); 
+    bit7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V); 
+}
+
+static void op_branch(MPUState * state, int8_t disp) {
+    state->pc += disp + 2;
+}
+
+static void op_subroutine(MPUState * state, uint8_t * memory, uint16_t addr) {
+    memory[state->sp] = state->pc & 0x00ff;
+    memory[(state->sp)-1] = (state->pc)>>8;
+    state->sp -= 2;
+    state->pc = addr;
+}
 
 void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
     
@@ -187,16 +208,37 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
             state->pc += 3;
         
         case OP_ASR_A    :
+            op_asr(state, &state->a);
+            state->pc += 1;
         case OP_ASR_B    :
+            op_asr(state, &state->b);
+            state->pc += 1;
         case OP_ASR_IDX  :
+            op_asr(state, &memory[OP1+X]);
+            state->pc += 2;
         case OP_ASR_EXT  :
+            op_asr(state, &memory[addr_ext]);
+            state->pc += 3;
     
         case OP_BCC      :
+            op_branch(state, OP1*GET_FLAG(FLAG_C));
+            break;
         case OP_BCS      :
+            op_branch(state, OP1*!GET_FLAG(FLAG_C));
+            break;
         case OP_BEQ      :
+            op_branch(state, OP1*GET_FLAG(FLAG_Z));
+            break;
         case OP_BGE      :
+            op_branch(state, OP1*!(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
+            break;
         case OP_BGT      :
+            op_branch(state, OP1*!((GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V))));
+            break;
         case OP_BHI      :
+            op_branch(state, OP1*!(GET_FLAG(FLAG_C) | GET_FLAG(FLAG_Z)));
+            break;
+
         case OP_BIT_A_IMM:
         case OP_BIT_A_DIR:
         case OP_BIT_A_IDX:
@@ -205,16 +247,38 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
         case OP_BIT_B_DIR:
         case OP_BIT_B_IDX:
         case OP_BIT_B_EXT:
+
         case OP_BLE      :
+            op_branch(state, OP1*(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
+            break;
         case OP_BLS      :
+            op_branch(state, OP1*(GET_FLAG(FLAG_C) | GET_FLAG(FLAG_Z)));
+            break;
         case OP_BLT      :
+            op_branch(state, OP1*(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
+            break;
         case OP_BMI      :
+            op_branch(state, OP1*GET_FLAG(FLAG_N));
+            break;
         case OP_BNE      :
+            op_branch(state, OP1*!GET_FLAG(FLAG_Z));
+            break;
         case OP_BPL      :
+            op_branch(state, OP1*!GET_FLAG(FLAG_N));
+            break;
         case OP_BRA      :
+            op_branch(state, OP1);
+            break;
         case OP_BSR      :
+            op_subroutine(state, memory, ((int8_t)OP1)+state->pc+2);
+            break;
         case OP_BVC      :
+            op_branch(state, OP1*GET_FLAG(FLAG_V));
+            break;
         case OP_BVS      :
+            op_branch(state, OP1*!GET_FLAG(FLAG_V));
+            break;
+
         case OP_CBA      :
         case OP_CLC      :
         case OP_CLI      :

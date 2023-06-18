@@ -16,11 +16,12 @@ void print_memory_frame(uint8_t * memory, uint16_t start, uint16_t end) {
         end ^= start;
         start ^= end;
     }
-    start = start & 0xFFF0;
-    end = end & 0xFFF0;
-    for(uint8_t i = start; i <= end; i+=0x0010) {
+
+    start &= 0xFFF0;
+    end &= 0xFFF0;
+    for(uint16_t i = start; i <= end; i+=0x0010) {
         printf("%04x: ", i);
-        for(uint8_t addr = i; addr < i+0x0010; ++addr) {
+        for(uint16_t addr = i; addr < i+0x0010; ++addr) {
             printf("%02x ", memory[addr]);
         }
         printf("\n");
