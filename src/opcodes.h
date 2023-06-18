@@ -167,7 +167,7 @@ enum opcode {
     OP_NEG_IDX      = 0x60,
     OP_NEG_EXT      = 0x70,
 
-    OP_NOP          = 0x8a,
+    OP_NOP          = 0x01,
     
     OP_ORA_A_IMM    = 0x8a,
     OP_ORA_A_DIR    = 0x9a,

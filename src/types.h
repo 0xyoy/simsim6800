@@ -8,6 +8,7 @@
 #define TYPES
 
 #include <stdlib.h>
+#include "opcodes.h"
 
 enum flag {
     FLAG_H = 5,

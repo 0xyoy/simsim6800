@@ -9,9 +9,10 @@
 
 #include "types.h"
 
-#define GET_FLAG(state, flag)   ((state->ccr)>>(flag)&(1U))
-#define SET_FLAG(state, flag)   ((state->ccr)|=1U<<flag)
-#define CLEAR_FLAG(state, flag) ((state->ccr)&=~(1U<<flag))
+#define GET_FLAG(flag)   ((state->ccr)>>(flag)&(1U))
+#define SET_FLAG(flag)   ((state->ccr)|=1U<<flag)
+#define CLEAR_FLAG(flag) ((state->ccr)&=~(1U<<flag))
+
 
 void print_memory_frame(uint8_t *, uint16_t, uint16_t); 
 void print_mpustate(MPUState *);

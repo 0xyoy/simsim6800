@@ -35,12 +35,12 @@ void print_mpustate(MPUState * state) {
     printf("SP:\t%#04x\n", state->sp);
 
     printf("%d%d%d%d%d%d\n", 
-            GET_FLAG(state, FLAG_H),
-            GET_FLAG(state, FLAG_I),
-            GET_FLAG(state, FLAG_N),
-            GET_FLAG(state, FLAG_Z),
-            GET_FLAG(state, FLAG_V),
-            GET_FLAG(state, FLAG_C)
+            GET_FLAG(FLAG_H),
+            GET_FLAG(FLAG_I),
+            GET_FLAG(FLAG_N),
+            GET_FLAG(FLAG_Z),
+            GET_FLAG(FLAG_V),
+            GET_FLAG(FLAG_C)
             );
     printf("HINZVC\n");
 }
@@ -57,5 +57,5 @@ void reset_mpustate(MPUState * state) {
 
 void run_single(MPUState * state, uint8_t * memory) {
     uint8_t opcode = memory[state->pc];
-    decode_exec(opcode);
+    decode_exec(opcode, state, memory);
 }

@@ -7,4 +7,4 @@
 
 #include "types.h"
 
-void decode_exec(uint8_t);
+void decode_exec(uint8_t, MPUState *, uint8_t *);
