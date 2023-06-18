@@ -17,88 +17,49 @@ static void op_invalid() {
     return;
 }
 
-/* add b to a */
-static void op_aba(MPUState * state) {
-    uint8_t sign_bit = (state->a)>>7;
-    state->a += state->b;
-
-    state->a < state->b ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
-    state->a == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
-    (state->a)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
-    sign_bit == (state->b)>>7 && sign_bit != (state->a)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
-    ((state->a)&0x0f) < ((state->b)&0x0f) ? SET_FLAG(FLAG_H) : CLEAR_FLAG(FLAG_H);
-}
-
-/* add operand and carry to a */
-static void op_adc_a(MPUState * state, uint8_t operand) {
-    uint8_t sign_bit = (state->a)>>7;
-    state->a += operand + GET_FLAG(FLAG_C);
+/* add operands with carry */
+static void op_adc(MPUState * state, uint8_t * operand1, uint8_t operand2) {
+    uint8_t sign_bit = (*operand1)>>7;
+    *operand1 += operand2 + GET_FLAG(FLAG_C);
     
-    state->a < operand ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
-    state->a == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
-    (state->a)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
-    sign_bit == (operand)>>7 && sign_bit != (state->a)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
-    ((state->a)&0x0f) < ((operand)&0x0f) ? SET_FLAG(FLAG_H) : CLEAR_FLAG(FLAG_H);
+    *operand1 < operand2 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
+    *operand1 == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
+    (*operand1)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
+    sign_bit == (operand2)>>7 && sign_bit != (*operand1)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
+    ((*operand1)&0x0f) < ((operand2)&0x0f) ? SET_FLAG(FLAG_H) : CLEAR_FLAG(FLAG_H);
 
 }
 
-/* add operand and carry to b */
-static void op_adc_b(MPUState * state, uint8_t operand) {
-    uint8_t sign_bit = (state->b)>>7;
-    state->b += operand + GET_FLAG(FLAG_C);
+/* add operands */
+static void op_add(MPUState * state, uint8_t * operand1, uint8_t operand2) {
+    uint8_t sign_bit = (*operand1)>>7;
+    *operand1 += operand2;
     
-    state->b < operand ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
-    state->b == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
-    (state->b)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
-    sign_bit == (operand)>>7 && sign_bit != (state->b)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
-    ((state->b)&0x0f) < ((operand)&0x0f) ? SET_FLAG(FLAG_H) : CLEAR_FLAG(FLAG_H);
+    *operand1 < operand2 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
+    *operand1 == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
+    (*operand1)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
+    sign_bit == (operand2)>>7 && sign_bit != (*operand1)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
+    ((*operand1)&0x0f) < ((operand2)&0x0f) ? SET_FLAG(FLAG_H) : CLEAR_FLAG(FLAG_H);
 }
 
 
-/* add operand to a */
-static void op_add_a(MPUState * state, uint8_t operand) {
-    uint8_t sign_bit = (state->a)>>7;
-    state->a += operand;
+/* and operands */
+static void op_and(MPUState * state, uint8_t * operand1, uint8_t operand2) {
+    *operand1 ^= operand2;
     
-    state->a < operand ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
-    state->a == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
-    (state->a)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
-    sign_bit == (operand)>>7 && sign_bit != (state->a)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
-    ((state->a)&0x0f) < ((operand)&0x0f) ? SET_FLAG(FLAG_H) : CLEAR_FLAG(FLAG_H);
-}
-
-/* add operand to b */
-static void op_add_b(MPUState * state, uint8_t operand) {
-    uint8_t sign_bit = (state->b)>>7;
-    state->b += operand;
-    
-    state->b < operand ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
-    state->b == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
-    (state->b)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
-    sign_bit == (operand)>>7 && sign_bit != (state->b)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
-    ((state->b)&0x0f) < ((operand)&0x0f) ? SET_FLAG(FLAG_H) : CLEAR_FLAG(FLAG_H);
-}
-
-
-/* and a and operand */
-static void op_and_a(MPUState * state, uint8_t operand) {
-    state->a ^= operand;
-    
-    state->a == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
-    (state->a)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
-    CLEAR_FLAG(FLAG_V); 
-
-}
-
-/* and b and operand */
-static void op_and_b(MPUState * state, uint8_t operand) {
-    state->b ^= operand;
-    
-    state->b == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
-    (state->b)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
+    *operand1 == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
+    (*operand1)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
     CLEAR_FLAG(FLAG_V); 
 }
 
+static void op_asl(MPUState * state, uint8_t * operand) {
+    uint8_t bit7 = (*operand)>>7;
+    *operand <<= 1;
+    bit7 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C); 
+    *operand == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
+    (*operand)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N); 
+    bit7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V); 
+}
 
 
 void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
@@ -109,117 +70,127 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
 
     switch(opcode) { 
         case OP_ABA:
-            op_aba(state);
+            op_add(state, &state->a, state->b);
             state->pc += 1;
             break;
 
         case OP_ADC_A_IMM:
-            op_adc_a(state, OP1);
+            op_adc(state, &state->a, OP1);
             state->pc += 2;
             break;
         case OP_ADC_A_DIR:
-            op_adc_a(state, memory[OP1]);
+            op_adc(state, &state->a, memory[OP1]);
             state->pc += 2;
             break;
         case OP_ADC_A_IDX:
-            op_adc_a(state, memory[OP1+X]);
+            op_adc(state, &state->a, memory[OP1+X]);
             state->pc += 2;
             break;
         case OP_ADC_A_EXT:
-            op_adc_a(state, memory[addr_ext]);
+            op_adc(state, &state->a, memory[addr_ext]);
             state->pc += 3;
             break;
         case OP_ADC_B_IMM:
-            op_adc_b(state, OP1);
+            op_adc(state, &state->b, OP1);
             state->pc += 2;
             break;
         case OP_ADC_B_DIR:
-            op_adc_b(state, memory[OP1]);
+            op_adc(state, &state->b, memory[OP1]);
             state->pc += 2;
             break;
         case OP_ADC_B_IDX:
-            op_adc_b(state, memory[OP1+X]);
+            op_adc(state, &state->b, memory[OP1+X]);
             state->pc += 2;
             break;
         case OP_ADC_B_EXT:
-            op_adc_b(state, memory[addr_ext]);
+            op_adc(state, &state->b, memory[addr_ext]);
             state->pc += 3;
             break;
         
         case OP_ADD_A_IMM:
-            op_add_a(state, OP1);
+            op_add(state, &state->a, OP1);
             state->pc += 2;
             break;
         case OP_ADD_A_DIR:
-            op_add_a(state, memory[OP1]);
+            op_add(state, &state->a, memory[OP1]);
             state->pc += 2;
             break;
         case OP_ADD_A_IDX:
-            op_add_a(state, memory[OP1+X]);
+            op_add(state, &state->a, memory[OP1+X]);
             state->pc += 2;
             break;
         case OP_ADD_A_EXT:
-            op_add_a(state, memory[addr_ext]);
+            op_add(state, &state->a, memory[addr_ext]);
             state->pc += 3;
             break;
         case OP_ADD_B_IMM:
-            op_add_b(state, OP1);
+            op_add(state, &state->b, OP1);
             state->pc += 2;
             break;
         case OP_ADD_B_DIR:
-            op_add_b(state, memory[OP1]);
+            op_add(state, &state->b, memory[OP1]);
             state->pc += 2;
             break;
         case OP_ADD_B_IDX:
-            op_add_b(state, memory[OP1+X]);
+            op_add(state, &state->b, memory[OP1+X]);
             state->pc += 2;
             break;
         case OP_ADD_B_EXT:
-            op_add_b(state, memory[addr_ext]);
+            op_add(state, &state->b, memory[addr_ext]);
             state->pc += 3;
             break;
         
         case OP_AND_A_IMM:
-            op_and_a(state, OP1);
+            op_and(state, &state->a, OP1);
             state->pc += 2;
             break;
         case OP_AND_A_DIR:
-            op_and_a(state, memory[OP1]);
+            op_and(state, &state->a, memory[OP1]);
             state->pc += 2;
             break;
         case OP_AND_A_IDX:
-            op_and_a(state, memory[OP1+X]);
+            op_and(state, &state->a, memory[OP1+X]);
             state->pc += 2;
             break;
         case OP_AND_A_EXT:
-            op_and_a(state, memory[addr_ext]);
+            op_and(state, &state->a, memory[addr_ext]);
             state->pc += 3;
             break;
         case OP_AND_B_IMM:
-            op_and_b(state, OP1);
+            op_and(state, &state->b, OP1);
             state->pc += 2;
             break;
         case OP_AND_B_DIR:
-            op_and_b(state, memory[OP1]);
+            op_and(state, &state->b, memory[OP1]);
             state->pc += 2;
             break;
         case OP_AND_B_IDX:
-            op_and_b(state, memory[OP1+X]);
+            op_and(state, &state->b, memory[OP1+X]);
             state->pc += 2;
             break;
         case OP_AND_B_EXT:
-            op_and_b(state, memory[addr_ext]);
+            op_and(state, &state->b, memory[addr_ext]);
             state->pc += 3;
             break;
 
         case OP_ASL_A    :
+            op_asl(state, &state->a);
+            state->pc += 1;
         case OP_ASL_B    :
+            op_asl(state, &state->b);
+            state->pc += 1;
         case OP_ASL_IDX  :
+            op_asl(state, &memory[OP1+X]);
+            state->pc += 2;
         case OP_ASL_EXT  :
+            op_asl(state, &memory[addr_ext]);
+            state->pc += 3;
+        
         case OP_ASR_A    :
         case OP_ASR_B    :
         case OP_ASR_IDX  :
         case OP_ASR_EXT  :
+    
         case OP_BCC      :
         case OP_BCS      :
         case OP_BEQ      :
