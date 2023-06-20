@@ -4,8 +4,8 @@
 * this code is licensed under GNU GPLv3. see LICENSE for details
 */
 
-#ifndef OPCODES
-#define OPCODES
+#ifndef OPCODE
+#define OPCODE
 
 enum opcode {
     OP_ABA          = 0x1b,

@@ -8,8 +8,9 @@
 #define TYPES
 
 #include <stdlib.h>
-#include "opcodes.h"
+#include "opcode.h"
 
+/* "by how much should you shift ccr to get the desired flag" */
 enum flag {
     FLAG_H = 5,
     FLAG_I = 4,

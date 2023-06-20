@@ -17,6 +17,7 @@
 void print_memory_frame(uint8_t *, uint16_t, uint16_t); 
 void print_mpustate(MPUState *);
 void reset_mpustate(MPUState *);
+void run_breakpoint(MPUState *, uint8_t *, uint16_t);
 void run_single(MPUState *, uint8_t *);
 
 #endif

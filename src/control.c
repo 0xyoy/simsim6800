@@ -4,10 +4,10 @@
 * this code is licensed under GNU GPLv3. see LICENSE for details
 */
 
-#include <stdio.h>
-
-#include "types.h"
 #include "control.h"
+
+#include <stdio.h>
+#include "types.h"
 #include "decode_exec.h"
 
 void print_memory_frame(uint8_t * memory, uint16_t start, uint16_t end) {
@@ -19,7 +19,10 @@ void print_memory_frame(uint8_t * memory, uint16_t start, uint16_t end) {
 
     start &= 0xFFF0;
     end &= 0xFFF0;
+
     for(uint16_t i = start; i <= end; i+=0x0010) {
+
+
         printf("%04x: ", i);
         for(uint16_t addr = i; addr < i+0x0010; ++addr) {
             printf("%02x ", memory[addr]);
@@ -56,7 +59,15 @@ void reset_mpustate(MPUState * state) {
     
 }
 
+void run_breakpoint(MPUState * state, uint8_t * memory, uint16_t breakpoint) {
+    while(state->pc != breakpoint) {
+        printf("Running opcode %#02x from address %#04x...\n", memory[state->pc], state->pc);
+        run_single(state, memory);
+    }
+}
+
 void run_single(MPUState * state, uint8_t * memory) {
     uint8_t opcode = memory[state->pc];
+    printf("Running opcode %#02x from address %#04x...\n", memory[state->pc], state->pc);
     decode_exec(opcode, state, memory);
 }

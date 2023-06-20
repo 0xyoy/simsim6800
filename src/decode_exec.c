@@ -4,14 +4,36 @@
 * this code is licensed under GNU GPLv3. see LICENSE for details
 */
 
+/* TODO generalize operands for each addressing mode  
+ * TODO add a function that return the addressing mode of an operation
+ * TODO increment pc according to mode
+ * TODO make similar calls (eg OP_ADD_A_IMM and OP_ADD_A_DIR) be fallthrough so to reduce the amount of copied code; let a general assignment at the start of decode_exec() handle choosing operands. i may be codegolfing a bit but it should be clear enough
+ */
+
+#include <stdio.h>
+
+#include "decode_exec.h"
+
 #include "types.h"
-#include "opcodes.h"
+#include "opcode.h"
 #include "control.h"
 
 #define OP1     memory[state->pc+1]
 #define OP2     memory[state->pc+2]
-
 #define X       state->x
+
+static void op_invalid();
+static void op_adc(MPUState *, uint8_t *, uint8_t);
+static void op_add(MPUState *, uint8_t *, uint8_t);
+static void op_and(MPUState *, uint8_t *, uint8_t);
+static void op_asl(MPUState *, uint8_t *);
+static void op_asr(MPUState *, uint8_t *);
+static void op_bit(MPUState *, uint8_t, uint8_t);
+static void op_branch(MPUState *, int8_t);
+static void op_cmp(MPUState *, uint8_t, uint8_t);
+static void op_clr(MPUState *, uint8_t *);
+
+static void op_subroutine_jump(MPUState *, uint8_t *, uint16_t);
 
 static void op_invalid() {
     return;
@@ -52,6 +74,7 @@ static void op_and(MPUState * state, uint8_t * operand1, uint8_t operand2) {
     CLEAR_FLAG(FLAG_V); 
 }
 
+/* arithmetic shift left - last bit set to 0, first bit goes to carry */
 static void op_asl(MPUState * state, uint8_t * operand) {
     uint8_t bit7 = (*operand)&0x80;
     *operand <<= 1;
@@ -61,22 +84,54 @@ static void op_asl(MPUState * state, uint8_t * operand) {
     bit7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V); 
 }
 
+/* arithmetic shift right - last bit goes to carry, first bit stays the same (idk why its that way as well, its weird) */
 static void op_asr(MPUState * state, uint8_t * operand) {
     uint8_t bit7 = (*operand)&0x80;
     uint8_t bit0 = (*operand)&0x01;
     *operand >>= 1;
     *operand |= bit7;
-    bit0 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C); 
+    bit0 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
     *operand == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
     bit7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N); 
     bit7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V); 
 }
 
+/* similar to and, but only ccr is affected */
+static void op_bit(MPUState * state, uint8_t operand1, uint8_t operand2) {
+    operand1 ^= operand2;
+    
+    operand1 == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
+    (operand1)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
+    CLEAR_FLAG(FLAG_V); 
+}
+
+/* change program counter by disp; keep in mind that disp is int8_t (signed) */
 static void op_branch(MPUState * state, int8_t disp) {
     state->pc += disp + 2;
 }
 
-static void op_subroutine(MPUState * state, uint8_t * memory, uint16_t addr) {
+/* compare two values (subtract operand 2 from operand 1), dont save the result, affects ccr only */
+static void op_cmp(MPUState * state, uint8_t operand1, uint8_t operand2) {
+    uint8_t op1_tmp = operand1;
+    uint8_t sign_bit = (operand1)>>7;
+    operand1 -= operand2;
+    
+    op1_tmp < operand2 ? SET_FLAG(FLAG_C) : CLEAR_FLAG(FLAG_C);
+    operand1 == 0 ? SET_FLAG(FLAG_Z) : CLEAR_FLAG(FLAG_Z);
+    (operand1)>>7 ? SET_FLAG(FLAG_N) : CLEAR_FLAG(FLAG_N);
+    sign_bit == (operand2)>>7 && sign_bit != (operand1)>>7 ? SET_FLAG(FLAG_V) : CLEAR_FLAG(FLAG_V);
+}
+
+static void op_clr(MPUState * state, uint8_t * operand) {
+    *operand = 0x00;
+    CLEAR_FLAG(FLAG_C);
+    SET_FLAG(FLAG_Z);
+    CLEAR_FLAG(FLAG_N);
+    CLEAR_FLAG(FLAG_V);
+}
+
+/* jump to subroutine */
+static void op_subroutine_jump(MPUState * state, uint8_t * memory, uint16_t addr) {
     memory[state->sp] = state->pc & 0x00ff;
     memory[(state->sp)-1] = (state->pc)>>8;
     state->sp -= 2;
@@ -197,28 +252,36 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
         case OP_ASL_A    :
             op_asl(state, &state->a);
             state->pc += 1;
+            break;
         case OP_ASL_B    :
             op_asl(state, &state->b);
             state->pc += 1;
+            break;
         case OP_ASL_IDX  :
             op_asl(state, &memory[OP1+X]);
             state->pc += 2;
+            break;
         case OP_ASL_EXT  :
             op_asl(state, &memory[addr_ext]);
             state->pc += 3;
+            break;
         
         case OP_ASR_A    :
             op_asr(state, &state->a);
             state->pc += 1;
+            break;
         case OP_ASR_B    :
             op_asr(state, &state->b);
             state->pc += 1;
+            break;
         case OP_ASR_IDX  :
             op_asr(state, &memory[OP1+X]);
             state->pc += 2;
+            break;
         case OP_ASR_EXT  :
             op_asr(state, &memory[addr_ext]);
             state->pc += 3;
+            break;
     
         case OP_BCC      :
             op_branch(state, OP1*GET_FLAG(FLAG_C));
@@ -240,13 +303,37 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
             break;
 
         case OP_BIT_A_IMM:
+            op_bit(state, state->a, OP1);
+            state->pc += 2;
+            break;
         case OP_BIT_A_DIR:
+            op_bit(state, state->a, memory[OP1]);
+            state->pc += 2;
+            break;
         case OP_BIT_A_IDX:
+            op_bit(state, state->a, memory[OP1+X]);
+            state->pc += 2;
+            break;
         case OP_BIT_A_EXT:
+            op_bit(state, state->a, memory[addr_ext]);
+            state->pc += 3;
+            break;
         case OP_BIT_B_IMM:
+            op_bit(state, state->b, OP1);
+            state->pc += 2;
+            break;
         case OP_BIT_B_DIR:
+            op_bit(state, state->b, memory[OP1]);
+            state->pc += 2;
+            break;
         case OP_BIT_B_IDX:
+            op_bit(state, state->b, memory[OP1+X]);
+            state->pc += 2;
+            break;
         case OP_BIT_B_EXT:
+            op_bit(state, state->b, memory[addr_ext]);
+            state->pc += 3;
+            break;
 
         case OP_BLE      :
             op_branch(state, OP1*(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
@@ -270,7 +357,7 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
             op_branch(state, OP1);
             break;
         case OP_BSR      :
-            op_subroutine(state, memory, ((int8_t)OP1)+state->pc+2);
+            op_subroutine_jump(state, memory, ((int8_t)OP1)+state->pc+2);   /* this is out of alphabetical order */
             break;
         case OP_BVC      :
             op_branch(state, OP1*GET_FLAG(FLAG_V));
@@ -280,12 +367,34 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
             break;
 
         case OP_CBA      :
+            op_cmp(state, state->a, state->b);
+            state->pc += 1;
+            break;
+
         case OP_CLC      :
+            CLEAR_FLAG(FLAG_C);
+            state->pc += 1;
+            break;
         case OP_CLI      :
+            CLEAR_FLAG(FLAG_I);
+            state->pc += 1;
+            break;
         case OP_CLR_A    :
+            op_clr(state, &state->a);
+            state->pc += 1;
+            break;
         case OP_CLR_B    :
+            op_clr(state, &state->b);
+            state->pc += 1;
+            break;
         case OP_CLR_IDX  :
+            op_clr(state, &memory[OP1+X]);
+            state->pc += 2;
+            break;
         case OP_CLR_EXT  :
+            op_clr(state, &memory[addr_ext]);
+            state->pc += 3;
+            break;
         case OP_CLV      :
         case OP_CMP_A_IMM:
         case OP_CMP_A_DIR:
