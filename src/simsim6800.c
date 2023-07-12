@@ -39,8 +39,8 @@ int main() {
     print_memory_frame(memory, 0x1ff0, 0x2010);
     run_single(&state, memory);
     print_mpustate(&state);
-    run_single(&state, memory);
-//    run_breakpoint(&state, memory, 0x1030);
+//    run_single(&state, memory);
+    run_breakpoint(&state, memory, 0x1030);
     print_mpustate(&state);
     return 0;
 }

@@ -20,6 +20,16 @@ enum flag {
     FLAG_C = 0
 };
 
+enum addr_mode {
+    MODE_ACC = 0,
+    MODE_INH = 1,
+    MODE_IMM = 2,
+    MODE_DIR = 3,
+    MODE_IDX = 4,
+    MODE_EXT = 5,
+    MODE_REL = 6
+};
+
 typedef struct {
     uint8_t a;
     uint8_t b;

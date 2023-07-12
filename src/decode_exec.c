@@ -4,23 +4,19 @@
 * this code is licensed under GNU GPLv3. see LICENSE for details
 */
 
-/* TODO generalize operands for each addressing mode  
- * TODO add a function that return the addressing mode of an operation
- * TODO increment pc according to mode
- * TODO make similar calls (eg OP_ADD_A_IMM and OP_ADD_A_DIR) be fallthrough so to reduce the amount of copied code; let a general assignment at the start of decode_exec() handle choosing operands. i may be codegolfing a bit but it should be clear enough
- */
 
-#include <stdio.h>
+#include <stdio.h> /* this is possibly to be deleted after this component works as intended (yes i debug with printf()) */
 
 #include "decode_exec.h"
 
 #include "types.h"
 #include "opcode.h"
 #include "control.h"
+#include "op_addr_mode.h"
 
-#define OP1     memory[state->pc+1]
-#define OP2     memory[state->pc+2]
-#define X       state->x
+#define OP1     (memory[state->pc+1])
+#define OP2     (memory[state->pc+2])
+#define X       (state->x)
 
 static void op_invalid();
 static void op_adc(MPUState *, uint8_t *, uint8_t);
@@ -107,7 +103,7 @@ static void op_bit(MPUState * state, uint8_t operand1, uint8_t operand2) {
 
 /* change program counter by disp; keep in mind that disp is int8_t (signed) */
 static void op_branch(MPUState * state, int8_t disp) {
-    state->pc += disp + 2;
+    state->pc += disp;
 }
 
 /* compare two values (subtract operand 2 from operand 1), dont save the result, affects ccr only */
@@ -130,240 +126,211 @@ static void op_clr(MPUState * state, uint8_t * operand) {
     CLEAR_FLAG(FLAG_V);
 }
 
-/* jump to subroutine */
+/* jump to subroutine *
+ * this will require EXTENSIVE testing */
 static void op_subroutine_jump(MPUState * state, uint8_t * memory, uint16_t addr) {
     memory[state->sp] = state->pc & 0x00ff;
     memory[(state->sp)-1] = (state->pc)>>8;
-    state->sp -= 2;
-    state->pc = addr;
+    state->pc = addr - 2;
 }
 
 void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
-    
-    uint16_t addr_ext = OP1;
-    addr_ext <<= 8;
-    addr_ext += OP2;
+
+    uint8_t op_addr_mode = get_op_addr_mode(opcode);
+    uint8_t op_size = 0;
+    uint8_t * operand;
+    switch(op_addr_mode){
+        case MODE_ACC:
+            /* fallthrough */
+        case MODE_INH:
+            op_size = 1;
+            break;
+        case MODE_IMM:
+            op_size = 2;
+            operand = &OP1;
+            break;
+        case MODE_DIR:
+            op_size = 2;
+            operand = &memory[OP1];
+            break;
+        case MODE_IDX:
+            op_size = 2;
+            operand = &memory[OP1+X];
+            break;
+        case MODE_EXT:
+            op_size = 3;
+            uint16_t addr_ext = OP1;
+            addr_ext <<= 8;
+            addr_ext += OP2;
+            operand = &memory[addr_ext];
+            break;
+        case MODE_REL:
+            op_size = 2;
+            operand = &OP1;
+            break;
+        default:
+            break; 
+    }
+
+    /* you can always add before execution, since none of the instructions operate on PC and those that seemingly do (JSR, BSR) execute next instrucion after return anyway */
+    state->pc += op_size;
 
     switch(opcode) { 
         case OP_ABA:
             op_add(state, &state->a, state->b);
-            state->pc += 1;
             break;
 
         case OP_ADC_A_IMM:
-            op_adc(state, &state->a, OP1);
-            state->pc += 2;
-            break;
+            /* fallthrough */
         case OP_ADC_A_DIR:
-            op_adc(state, &state->a, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADC_A_IDX:
-            op_adc(state, &state->a, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADC_A_EXT:
-            op_adc(state, &state->a, memory[addr_ext]);
-            state->pc += 3;
+            op_adc(state, &state->a, *operand);
             break;
+
         case OP_ADC_B_IMM:
-            op_adc(state, &state->b, OP1);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADC_B_DIR:
-            op_adc(state, &state->b, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADC_B_IDX:
-            op_adc(state, &state->b, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADC_B_EXT:
-            op_adc(state, &state->b, memory[addr_ext]);
-            state->pc += 3;
+            op_adc(state, &state->b, *operand);
             break;
         
         case OP_ADD_A_IMM:
-            op_add(state, &state->a, OP1);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADD_A_DIR:
-            op_add(state, &state->a, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADD_A_IDX:
-            op_add(state, &state->a, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADD_A_EXT:
-            op_add(state, &state->a, memory[addr_ext]);
-            state->pc += 3;
+            op_add(state, &state->a, *operand);
             break;
+
         case OP_ADD_B_IMM:
-            op_add(state, &state->b, OP1);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADD_B_DIR:
-            op_add(state, &state->b, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADD_B_IDX:
-            op_add(state, &state->b, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ADD_B_EXT:
-            op_add(state, &state->b, memory[addr_ext]);
-            state->pc += 3;
+            op_add(state, &state->b, *operand);
             break;
         
         case OP_AND_A_IMM:
-            op_and(state, &state->a, OP1);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_AND_A_DIR:
-            op_and(state, &state->a, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_AND_A_IDX:
-            op_and(state, &state->a, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_AND_A_EXT:
-            op_and(state, &state->a, memory[addr_ext]);
-            state->pc += 3;
+            op_and(state, &state->a, *operand);
             break;
+
         case OP_AND_B_IMM:
-            op_and(state, &state->b, OP1);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_AND_B_DIR:
-            op_and(state, &state->b, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_AND_B_IDX:
-            op_and(state, &state->b, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_AND_B_EXT:
-            op_and(state, &state->b, memory[addr_ext]);
-            state->pc += 3;
+            op_and(state, &state->b, *operand);
             break;
 
         case OP_ASL_A    :
             op_asl(state, &state->a);
-            state->pc += 1;
             break;
         case OP_ASL_B    :
             op_asl(state, &state->b);
-            state->pc += 1;
             break;
         case OP_ASL_IDX  :
-            op_asl(state, &memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ASL_EXT  :
-            op_asl(state, &memory[addr_ext]);
-            state->pc += 3;
+            op_asl(state, operand);
             break;
         
         case OP_ASR_A    :
             op_asr(state, &state->a);
-            state->pc += 1;
             break;
         case OP_ASR_B    :
             op_asr(state, &state->b);
-            state->pc += 1;
             break;
         case OP_ASR_IDX  :
-            op_asr(state, &memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_ASR_EXT  :
-            op_asr(state, &memory[addr_ext]);
-            state->pc += 3;
+            op_asr(state, operand);
             break;
     
         case OP_BCC      :
-            op_branch(state, OP1*GET_FLAG(FLAG_C));
+            op_branch(state, (*operand)*GET_FLAG(FLAG_C));
             break;
         case OP_BCS      :
-            op_branch(state, OP1*!GET_FLAG(FLAG_C));
+            op_branch(state, (*operand)*!GET_FLAG(FLAG_C));
             break;
         case OP_BEQ      :
-            op_branch(state, OP1*GET_FLAG(FLAG_Z));
+            op_branch(state, (*operand)*GET_FLAG(FLAG_Z));
             break;
         case OP_BGE      :
-            op_branch(state, OP1*!(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
+            op_branch(state, (*operand)*!(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
             break;
         case OP_BGT      :
-            op_branch(state, OP1*!((GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V))));
+            op_branch(state, (*operand)*!((GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V))));
             break;
         case OP_BHI      :
-            op_branch(state, OP1*!(GET_FLAG(FLAG_C) | GET_FLAG(FLAG_Z)));
+            op_branch(state, (*operand)*!(GET_FLAG(FLAG_C) | GET_FLAG(FLAG_Z)));
             break;
 
         case OP_BIT_A_IMM:
-            op_bit(state, state->a, OP1);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_BIT_A_DIR:
-            op_bit(state, state->a, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_BIT_A_IDX:
-            op_bit(state, state->a, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_BIT_A_EXT:
-            op_bit(state, state->a, memory[addr_ext]);
-            state->pc += 3;
+            op_bit(state, state->a, *operand);
             break;
         case OP_BIT_B_IMM:
-            op_bit(state, state->b, OP1);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_BIT_B_DIR:
-            op_bit(state, state->b, memory[OP1]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_BIT_B_IDX:
-            op_bit(state, state->b, memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_BIT_B_EXT:
-            op_bit(state, state->b, memory[addr_ext]);
-            state->pc += 3;
+            op_bit(state, state->b, *operand);
             break;
 
         case OP_BLE      :
-            op_branch(state, OP1*(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
+            op_branch(state, (*operand)*(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
             break;
         case OP_BLS      :
-            op_branch(state, OP1*(GET_FLAG(FLAG_C) | GET_FLAG(FLAG_Z)));
+            op_branch(state, (*operand)*(GET_FLAG(FLAG_C) | GET_FLAG(FLAG_Z)));
             break;
         case OP_BLT      :
-            op_branch(state, OP1*(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
+            op_branch(state, (*operand)*(GET_FLAG(FLAG_N) ^ GET_FLAG(FLAG_V)));
             break;
         case OP_BMI      :
-            op_branch(state, OP1*GET_FLAG(FLAG_N));
+            op_branch(state, (*operand)*GET_FLAG(FLAG_N));
             break;
         case OP_BNE      :
-            op_branch(state, OP1*!GET_FLAG(FLAG_Z));
+            op_branch(state, (*operand)*!GET_FLAG(FLAG_Z));
             break;
         case OP_BPL      :
-            op_branch(state, OP1*!GET_FLAG(FLAG_N));
+            op_branch(state, (*operand)*!GET_FLAG(FLAG_N));
             break;
         case OP_BRA      :
-            op_branch(state, OP1);
+            op_branch(state, (*operand));
             break;
         case OP_BSR      :
-            op_subroutine_jump(state, memory, ((int8_t)OP1)+state->pc+2);   /* this is out of alphabetical order */
+            op_subroutine_jump(state, memory, ((int8_t)(*operand))+state->pc);   /* this is out of alphabetical order */
             break;
         case OP_BVC      :
-            op_branch(state, OP1*GET_FLAG(FLAG_V));
+            op_branch(state, (*operand)*GET_FLAG(FLAG_V));
             break;
         case OP_BVS      :
-            op_branch(state, OP1*!GET_FLAG(FLAG_V));
+            op_branch(state, (*operand)*!GET_FLAG(FLAG_V));
             break;
 
         case OP_CBA      :
@@ -379,21 +346,17 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
             CLEAR_FLAG(FLAG_I);
             state->pc += 1;
             break;
+
         case OP_CLR_A    :
             op_clr(state, &state->a);
-            state->pc += 1;
             break;
         case OP_CLR_B    :
             op_clr(state, &state->b);
-            state->pc += 1;
             break;
         case OP_CLR_IDX  :
-            op_clr(state, &memory[OP1+X]);
-            state->pc += 2;
-            break;
+            /* ft */
         case OP_CLR_EXT  :
-            op_clr(state, &memory[addr_ext]);
-            state->pc += 3;
+            op_clr(state, operand);
             break;
         case OP_CLV      :
         case OP_CMP_A_IMM:

@@ -61,7 +61,6 @@ void reset_mpustate(MPUState * state) {
 
 void run_breakpoint(MPUState * state, uint8_t * memory, uint16_t breakpoint) {
     while(state->pc != breakpoint) {
-        printf("Running opcode %#02x from address %#04x...\n", memory[state->pc], state->pc);
         run_single(state, memory);
     }
 }
