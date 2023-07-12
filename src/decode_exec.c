@@ -335,7 +335,6 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
 
         case OP_CBA      :
             op_cmp(state, state->a, state->b);
-            state->pc += 1;
             break;
 
         case OP_CLC      :
