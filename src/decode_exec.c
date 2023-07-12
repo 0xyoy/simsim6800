@@ -340,11 +340,9 @@ void decode_exec(uint8_t opcode, MPUState * state, uint8_t * memory) {
 
         case OP_CLC      :
             CLEAR_FLAG(FLAG_C);
-            state->pc += 1;
             break;
         case OP_CLI      :
             CLEAR_FLAG(FLAG_I);
-            state->pc += 1;
             break;
 
         case OP_CLR_A    :
